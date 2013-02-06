@@ -12,6 +12,7 @@ except ImportError:
     import json
 
 import requests
+import datetime
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class PatStatWebHarvester(HarvesterBase):
         ids = []
         for elem in indicatori:
             obj = HarvestObject(
-                guid=elem['id'],
+                guid=sha1(elem['URL']).hexdigest(),
                 job=harvest_job,
                 content=json.dumps(elem)
             )
@@ -61,7 +62,7 @@ class PatStatWebHarvester(HarvesterBase):
         if not r.ok:
             return False
 
-        elem['metadata'] = r.json.values()[0]
+        elem['metadata'] = r.json.values()[0][0]
 
         for resource_key in self.datasetkeys:
             try:
@@ -102,7 +103,7 @@ class PatStatWebHarvester(HarvesterBase):
             'author': elem['Fonte'],
             'maintainer':  elem['Fonte'],
             'maintainer_email': '',
-            'tags': 'stats',
+            'tags': ['stats'],
             'license_id': '',
             'extras': {k: v for k, v in elem['metadata'].items()
                        if k not in self.datasetkeys},
@@ -115,10 +116,15 @@ class PatStatWebHarvester(HarvesterBase):
             except KeyError:
                 pass
             else:
+                day, month, year = [int(a) for a in package_dict['extras']['UltimoAggiornamento'].split('/')]
+                modified = datetime.datetime(year, month, day)
                 package_dict['resources'].append({
                     'url': resource_url,
                     'format': 'json',
+                    'mimetype': 'application/json',
                     'description': elem[resource_key].keys()[0],
+                    'name': elem[resource_key].keys()[0],
+                    'last_modified': modified.isoformat()
                 })
 
         package_dict['name'] = self._gen_new_name(package_dict['title'])
