@@ -21,8 +21,7 @@ setup(
         # -*- Extra requirements: -*-
     ],
     entry_points="""
-        [ckan.plugins]
-    # Add plugins here, eg
-    patstatweb=ckanext.patstatweb.harvesters:PatStatWebHarvester
+    [ckan.plugins]
+    patstatweb_harvester=ckanext.patstatweb.harvesters:PatStatWebHarvester
     """,
 )
