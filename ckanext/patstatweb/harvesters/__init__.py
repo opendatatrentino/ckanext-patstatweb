@@ -40,17 +40,14 @@ class PatStatWebHarvester(HarvesterBase):
         "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/expJSON.aspx"
     datasetkeys = ("Indicatore", "TabNumeratore", "TabDenominatore")
 
-    def __init__(self, *args, **kwargs):
-        super(PatStatWebHarvester, self).__init__(*args, **kwargs)
-
-        user = get_action('get_site_user')(
-            {'model': model, 'ignore_auth': True}, {}
-        )
-        api_key = user.get('apikey')
-        self.ckan_client = ckanclient.CkanClient(
-            base_location="http://localhost:5000",
-            API_KEY=api_key,
-        )
+    user = get_action('get_site_user')(
+        {'model': model, 'ignore_auth': True}, {}
+    )
+    api_key = user.get('apikey')
+    ckan_client = ckanclient.CkanClient(
+        base_location="http://localhost:5000",
+        API_KEY=api_key,
+    )
 
     def info(self):
         return {
