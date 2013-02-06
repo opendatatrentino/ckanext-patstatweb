@@ -26,6 +26,6 @@ setup(
 	"""
         [ckan.plugins]
 	# Add plugins here, eg
-	# myplugin=ckanext.patstatweb:PluginClass
+	patstatweb=ckanext.patstatweb.harvesters:PatStatWebHarvester
 	""",
 )
