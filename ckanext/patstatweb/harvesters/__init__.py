@@ -1,10 +1,16 @@
 #coding: utf-8
+import os
 import logging
 
 from hashlib import sha1
 
 from ckanext.harvest.harvesters import HarvesterBase
 from ckanext.harvest.model import HarvestObject
+
+from ckan.logic import get_action
+from ckan import model
+
+import ckanclient
 
 try:
     import simplejson as json
@@ -14,7 +20,26 @@ except ImportError:
 import requests
 import datetime
 
+import csv
+from tempfile import mkstemp
+
 log = logging.getLogger(__name__)
+
+USER = get_action('get_site_user')({'model': model, 'ignore_auth': True}, {})
+API_KEY = USER.get('apikey')
+CKAN_CLIENT = ckanclient.CkanClient(
+    base_location="http://localhost:5000",
+    api_key=API_KEY,
+)
+
+
+def create_csv_from_json(rows):
+    temp_file, path = mkstemp()
+    fieldnames = rows[0].keys()
+    writer = csv.DictWriter(temp_file, fieldnames)
+    writer.writerows(rows)
+    temp_file.close()
+    return path
 
 
 class PatStatWebHarvester(HarvesterBase):
@@ -114,18 +139,32 @@ class PatStatWebHarvester(HarvesterBase):
             try:
                 resource_url = elem['metadata'][resource_key]
             except KeyError:
-                pass
-            else:
-                day, month, year = [int(a) for a in package_dict['extras']['UltimoAggiornamento'].split('/')]
-                modified = datetime.datetime(year, month, day)
-                package_dict['resources'].append({
-                    'url': resource_url,
-                    'format': 'json',
-                    'mimetype': 'application/json',
-                    'description': elem[resource_key].keys()[0],
-                    'name': elem[resource_key].keys()[0],
-                    'last_modified': modified.isoformat()
-                })
+                continue
+
+            date = package_dict['extras']['UltimoAggiornamento']
+            day, month, year = [int(a) for a in date.split('/')]
+            modified = datetime.datetime(year, month, day)
+            name = elem[resource_key].keys()[0]
+
+            res_dict = {
+                'url': resource_url,
+                'format': 'json',
+                'mimetype': 'application/json',
+                'description': name,
+                'name': name,
+                'last_modified': modified.isoformat()
+            }
+            package_dict['resources'].append(res_dict)
+
+            # After creating a link to the original source we want a CSV
+            rows = elem[resource_key][name]
+            file_path = create_csv_from_json(rows)
+            url, errmsg = CKAN_CLIENT.upload_file(file_path)
+            os.remove(file_path)
+
+            res_dict_csv = dict(res_dict)
+            res_dict["url"] = url
+            package_dict['resources'].append(res_dict_csv)
 
         package_dict['name'] = self._gen_new_name(package_dict['title'])
 
