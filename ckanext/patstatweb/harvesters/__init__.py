@@ -41,7 +41,7 @@ class PatStatWebHarvester(HarvesterBase):
             return []
 
         try:
-            indicatori = json.loads(r.json)['IndicatoriStrutturali']
+            indicatori = r.json['IndicatoriStrutturali']
         except KeyError, json.JSONDecodeError:
             return []
 
@@ -55,22 +55,33 @@ class PatStatWebHarvester(HarvesterBase):
     def fetch_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester fetch_stage')
 
-        identifier = harvest_object.content.split('/').pop().split('.')[0]
-        url = self.RDF_URL % identifier 
-        try:
-            fh = urllib2.urlopen(url)
-            harvest_object.content = fh.read().decode('iso-8859-1')
-            harvest_object.save()
-            fh.close()
-            return True
-        except Exception, e:
+        elem = json.loads(harvest_object.content)
+        r = requests.get(elem['URL'])
+        if not r.ok:
+            return False
 
-            import pdb; pdb.set_trace()
-            log.exception(e)
-            self._save_object_error('Unable to get content for dataset: %s: %r' % \
-                                        (url, e), harvest_object)
+        elem['metadata'] = r.json.values()[0]
 
-    def import_stage(self,harvest_object):
+        for resource_key in ("Indicatore", "TabNumeratore", "TabNumeratore"):
+            try:
+                resource_url = elem['metadata'][resource_key]
+            except KeyError:
+                pass
+            else:
+                r1 = requests.get(resource_url)
+                if r1.ok:
+                    elem[resource_key] = r1.json
+
+        harvest_object.content = json.dumps(elem)
+        harvest_object.save()
+
+        return True
+
+#            log.exception(e)
+#            self._save_object_error('Unable to get content for dataset: %s: %r' % \
+#                                        (url, e), harvest_object)
+
+    def import_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester import_stage')
         if not harvest_object:
             log.error('No harvest object received')
@@ -79,17 +90,6 @@ class PatStatWebHarvester(HarvesterBase):
         if harvest_object.content is None:
             self._save_object_error('Empty content for object %s' % harvest_object.id,harvest_object,'Import')
             return False
-
-        try:
-            graph = Graph()
-            graph.parse(StringIO(harvest_object.content.encode('utf-8')))
-
-            url = harvest_object.guid
-            package_dict = consume_one(graph)
-        except Exception, e:
-            log.exception(e)
-            self._save_object_error('%r'%e,harvest_object,'Import')
-            return None
 
         package_dict['id'] = harvest_object.guid
         title = package_dict['title'] or package_dict['name'] 
@@ -106,6 +106,6 @@ class PatStatWebHarvester(HarvesterBase):
         package_dict['extras']['eu_country'] = u'ES'
         package_dict['extras']['eu_nuts2'] = u'ES51'
 
-        return self._create_or_update_package(package_dict,harvest_object)
+        return self._create_or_update_package(package_dict, harvest_object)
 
 
