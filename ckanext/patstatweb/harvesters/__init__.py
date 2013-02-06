@@ -15,8 +15,10 @@ import requests
 
 log = logging.getLogger(__name__)
 
+
 class PatStatWebHarvester(HarvesterBase):
-    INDEX_URL = "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/expJSON.aspx"
+    INDEX_URL = \
+        "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/expJSON.aspx"
     datasetkeys = ("Indicatore", "TabNumeratore", "TabDenominatore")
 
     def info(self):
@@ -42,7 +44,11 @@ class PatStatWebHarvester(HarvesterBase):
 
         ids = []
         for elem in indicatori:
-            obj = HarvestObject(guid=elem['id'], job=harvest_job, content=json.dumps(elem))
+            obj = HarvestObject(
+                guid=elem['id'],
+                job=harvest_job,
+                content=json.dumps(elem)
+            )
             obj.save()
             ids.append(obj.id)
         return ids
@@ -72,10 +78,6 @@ class PatStatWebHarvester(HarvesterBase):
 
         return True
 
-#            log.exception(e)
-#            self._save_object_error('Unable to get content for dataset: %s: %r' % \
-#                                        (url, e), harvest_object)
-
     def import_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester import_stage')
         if not harvest_object:
@@ -83,7 +85,11 @@ class PatStatWebHarvester(HarvesterBase):
             return False
 
         if harvest_object.content is None:
-            self._save_object_error('Empty content for object %s' % harvest_object.id,harvest_object,'Import')
+            self._save_object_error(
+                'Empty content for object %s' % harvest_object.id,
+                harvest_object,
+                'Import'
+            )
             return False
 
         elem = json.loads(harvest_object.content)
@@ -98,7 +104,8 @@ class PatStatWebHarvester(HarvesterBase):
             'maintainer_email': '',
             'tags': 'stats',
             'license_id': '',
-            'extras': {k: v for k, v in elem['metadata'].items() if k not in self.datasetkeys},
+            'extras': {k: v for k, v in elem['metadata'].items()
+                       if k not in self.datasetkeys},
             'resources': []
         }
 
@@ -117,8 +124,7 @@ class PatStatWebHarvester(HarvesterBase):
         package_dict['name'] = self._gen_new_name(package_dict['title'])
 
         # Set the modification date
-        package_dict['metadata_modified'] = package_dict['extras']['UltimoAggiornamento']
+        package_dict['metadata_modified'] = \
+                package_dict['extras']['UltimoAggiornamento']
 
         return self._create_or_update_package(package_dict, harvest_object)
-
-
