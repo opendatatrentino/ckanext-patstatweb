@@ -25,13 +25,6 @@ from tempfile import mkstemp
 
 log = logging.getLogger(__name__)
 
-USER = get_action('get_site_user')({'model': model, 'ignore_auth': True}, {})
-API_KEY = USER.get('apikey')
-CKAN_CLIENT = ckanclient.CkanClient(
-    base_location="http://localhost:5000",
-    api_key=API_KEY,
-)
-
 
 def create_csv_from_json(rows):
     temp_file, path = mkstemp()
@@ -46,6 +39,18 @@ class PatStatWebHarvester(HarvesterBase):
     INDEX_URL = \
         "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/expJSON.aspx"
     datasetkeys = ("Indicatore", "TabNumeratore", "TabDenominatore")
+
+    def __init__(self, *args, **kwargs):
+        super(PatStatWebHarvester, self).__init__(*args, **kwargs)
+
+        user = get_action('get_site_user')(
+            {'model': model, 'ignore_auth': True}, {}
+        )
+        api_key = user.get('apikey')
+        self.ckan_client = ckanclient.CkanClient(
+            base_location="http://localhost:5000",
+            API_KEY=api_key,
+        )
 
     def info(self):
         return {
@@ -159,7 +164,7 @@ class PatStatWebHarvester(HarvesterBase):
             # After creating a link to the original source we want a CSV
             rows = elem[resource_key][name]
             file_path = create_csv_from_json(rows)
-            url, errmsg = CKAN_CLIENT.upload_file(file_path)
+            url, errmsg = self.ckan_client.upload_file(file_path)
             os.remove(file_path)
 
             res_dict_csv = dict(res_dict)
