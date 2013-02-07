@@ -1,4 +1,6 @@
-#coding: utf-8
+# CKAN Harvester per http://www.statweb.provincia.tn.it/
+# coding: utf-8
+
 import os
 import logging
 
@@ -25,35 +27,91 @@ from tempfile import mkstemp
 
 log = logging.getLogger(__name__)
 
+DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
+DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/ElencoIndicatori.aspx'''
+
+
+def metadata_mapping(infodict):
+    """
+    Mapping secondo specifiche tratte da:
+    http://www.innovazione.provincia.tn.it/binary/pat_innovazione/notizie/
+    AllegatoB_formati_21Dicembre_def.1356705197.pdf
+    """
+    origmeta = {k: v for k, v in infodict['metadata'].items()
+                if k not in DATASET_KEYS}
+    date = origmeta['UltimoAggiornamento']
+
+    day, month, year = [int(a) for a in date.split('/')]
+    modified = datetime.datetime(year, month, day)
+    Anno = origmeta['AnnoInizio'] or '1970'
+    created = datetime.datetime(int(Anno), 1, 1)
+
+    def format_description():
+        d = u''.join((
+            infodict['Descrizione'],
+            u'. Area: ', origmeta['Area'],
+            u'. Settore: ', origmeta['Settore'],
+            u'. Algoritmo: ', origmeta['Algoritmo'],
+            u'. Unità di misura: ', origmeta['UM'],
+            u'. Fenomeno: ', origmeta['Fenomeno'],
+            u'. Confronti territoriali: ',
+            origmeta['ConfrontiTerritoriali'],
+            u'. Note: ', origmeta['Note'],
+        ))
+        return d
+
+    extras = {}
+    try:
+        extras = {
+            u'Titolo': infodict['Descrizione'],
+            u'Titolare': 'Provincia Autonoma di Trento',
+            u'Referente': 'Servizio Statistica',
+            u'Contatto': 'serv.statistica@provincia.tn.it',
+            u'Descrizione': format_description(),
+            u'Categorie': 'Statistica',
+            u'Tag/Parole chiave': ', u'.join((origmeta['Area'], origmeta['Settore'])),
+            u'Documentazione Tecnica': DOCTEC,
+            u'Copertura Geografica': 'Provincia di Trento',
+            u'Copertura Temporale (Data di inizio)': created.isoformat(),
+            u'Copertura Temporale (Data di fine)': modified.isoformat(),
+            u'Aggiornamento': origmeta['FreqAggiornamento'],
+            u'Data di pubblicazione': datetime.datetime.now().isoformat(),
+            u'Data di Aggiornamento': modified.isoformat(),
+            u'Licenza': 'CC-BY',
+            u'Formato': 'JSON',
+            u'Codifica Caratteri': 'utf8',
+            u'Autore': 'Servizio Statistica',
+            u"Email dell'autore": 'serv.statistica@provincia.tn.it',
+            u'URL sito': 'http://www.statistica.provincia.tn.it',
+        }
+    except KeyError:
+        log.error("Input format changed, fix the code")
+    except UnicodeDecodeError:
+        log.error("Encoding error, fix the code")
+
+    return extras
+
 
 def create_csv_from_json(rows):
-    temp_file, path = mkstemp()
+    fd, path = mkstemp(suffix='.csv')
+    f = os.fdopen(fd, "w")
     fieldnames = rows[0].keys()
-    writer = csv.DictWriter(temp_file, fieldnames)
+    writer = csv.DictWriter(f, fieldnames)
+    writer.writeheader()
     writer.writerows(rows)
-    temp_file.close()
+    f.close()
     return path
 
 
 class PatStatWebHarvester(HarvesterBase):
     INDEX_URL = \
         "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/expJSON.aspx"
-    datasetkeys = ("Indicatore", "TabNumeratore", "TabDenominatore")
-
-    user = get_action('get_site_user')(
-        {'model': model, 'ignore_auth': True}, {}
-    )
-    api_key = user.get('apikey')
-    ckan_client = ckanclient.CkanClient(
-        base_location="http://localhost:5000",
-        API_KEY=api_key,
-    )
 
     def info(self):
         return {
-            'name': 'PATstatweb',
-            'title': 'Servizio Statistica - Provincia Autonoma di Trento',
-            'description': 'Harvester for www.statistica.provincia.tn.it'
+            u'name': u'PATstatweb',
+            u'title': u'Servizio Statistica - Provincia Autonoma di Trento',
+            u'description': u'Harvester for www.statistica.provincia.tn.it'
         }
 
     def gather_stage(self, harvest_job):
@@ -87,11 +145,12 @@ class PatStatWebHarvester(HarvesterBase):
         elem = json.loads(harvest_object.content)
         r = requests.get(elem['URL'])
         if not r.ok:
+            log.error('Cannot get "%s"', elem['URL'])
             return False
 
         elem['metadata'] = r.json.values()[0][0]
 
-        for resource_key in self.datasetkeys:
+        for resource_key in DATASET_KEYS:
             try:
                 resource_url = elem['metadata'][resource_key]
             except KeyError:
@@ -103,22 +162,37 @@ class PatStatWebHarvester(HarvesterBase):
 
         harvest_object.content = json.dumps(elem)
         harvest_object.save()
-
         return True
 
     def import_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester import_stage')
+
         if not harvest_object:
             log.error('No harvest object received')
             return False
 
         if harvest_object.content is None:
+            log.error('Harvest object contentless')
             self._save_object_error(
                 'Empty content for object %s' % harvest_object.id,
                 harvest_object,
                 'Import'
             )
             return False
+
+        # get api user & keys
+        user = get_action('get_site_user')(
+            {'model': model, 'ignore_auth': True}, {}
+        )
+
+        api_key = user.get('apikey')
+
+        base_location = "http://127.0.0.1:5000"
+        ckan_client = ckanclient.CkanClient(
+            base_location=base_location + '/api',
+            api_key=api_key,
+            is_verbose=True,
+        )
 
         elem = json.loads(harvest_object.content)
 
@@ -129,49 +203,51 @@ class PatStatWebHarvester(HarvesterBase):
             'notes': elem['metadata']["Note"],
             'author': elem['Fonte'],
             'maintainer':  elem['Fonte'],
-            'maintainer_email': '',
-            'tags': ['stats'],
-            'license_id': '',
-            'extras': {k: v for k, v in elem['metadata'].items()
-                       if k not in self.datasetkeys},
+            'maintainer_email': 'serv.statistica@provincia.tn.it',
+            'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
+            'license_id': 'cc-by',
+            'extras': metadata_mapping(elem),
             'resources': []
         }
 
-        for resource_key in self.datasetkeys:
+        modified = package_dict['extras']['Data di Aggiornamento']
+
+        for resource_key in DATASET_KEYS:
             try:
                 resource_url = elem['metadata'][resource_key]
             except KeyError:
                 continue
 
-            date = package_dict['extras']['UltimoAggiornamento']
-            day, month, year = [int(a) for a in date.split('/')]
-            modified = datetime.datetime(year, month, day)
             name = elem[resource_key].keys()[0]
 
             res_dict = {
                 'url': resource_url,
                 'format': 'json',
                 'mimetype': 'application/json',
+                'resource_type': 'api',
                 'description': name,
                 'name': name,
-                'last_modified': modified.isoformat()
+                'last_modified': modified,
             }
             package_dict['resources'].append(res_dict)
 
             # After creating a link to the original source we want a CSV
             rows = elem[resource_key][name]
             file_path = create_csv_from_json(rows)
-            url, errmsg = self.ckan_client.upload_file(file_path)
+            junkurl, errmsg = ckan_client.upload_file(file_path)
+            url = junkurl.replace('http://', base_location)
             os.remove(file_path)
 
             res_dict_csv = dict(res_dict)
-            res_dict["url"] = url
+            res_dict_csv["url"] = url
+            res_dict_csv["format"] = 'csv'
+            res_dict_csv["mimetype"] = 'text/csv'
+            res_dict_csv["resource_type"] = 'file'
             package_dict['resources'].append(res_dict_csv)
 
         package_dict['name'] = self._gen_new_name(package_dict['title'])
 
         # Set the modification date
-        package_dict['metadata_modified'] = \
-                package_dict['extras']['UltimoAggiornamento']
+        package_dict['metadata_modified'] = modified
 
         return self._create_or_update_package(package_dict, harvest_object)
