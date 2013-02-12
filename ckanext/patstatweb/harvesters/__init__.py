@@ -226,6 +226,7 @@ class PatStatWebHarvester(HarvesterBase):
         package_dict = {
             'id': sha1(elem['URL']).hexdigest(),
             'title': elem['Descrizione'],
+            'groups': ['Statistica'],
             'url': elem['URL'],
             'notes': elem['metadata']["Note"],
             'author': elem['Fonte'],
@@ -233,6 +234,10 @@ class PatStatWebHarvester(HarvesterBase):
             'maintainer_email': 'serv.statistica@provincia.tn.it',
             'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
             'license_id': 'cc-by',
+            'license': u'Creative Commons Attribution',
+            'license_title': u'Creative Commons CCZero',
+            'license_url': u'http://creativecommons.org/licenses/by/3.0/it/',
+            'isopen': True,
             'extras': metadata_mapping(elem),
             'resources': []
         }
