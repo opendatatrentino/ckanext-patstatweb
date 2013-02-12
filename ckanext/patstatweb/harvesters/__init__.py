@@ -30,6 +30,28 @@ log = logging.getLogger(__name__)
 DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
 DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/ElencoIndicatori.aspx'''
 
+# patched ckanclient functions for upload
+def _post_multipart(self, selector, fields, files):
+    '''Post fields and files to an http host as multipart/form-data.
+
+    :param fields: a sequence of (name, value) tuples for regular form
+        fields
+    :param files: a sequence of (name, filename, value) tuples for data to
+        be uploaded as files
+
+    :returns: the server's response page
+
+    '''
+
+    from urlparse import urljoin, urlparse
+
+    content_type, body = self._encode_multipart_formdata(fields, files)
+
+    headers = self._auth_headers()
+    url = urljoin(self.base_location + urlparse(self.base_location).netloc, selector)
+    req = requests.post(url, data=dict(fields), files={files[0][0]: files[0][1:]}, headers=headers)
+    return req.status_code, req.error, req.headers, req.text
+
 
 def metadata_mapping(infodict):
     """
@@ -69,7 +91,7 @@ def metadata_mapping(infodict):
             u'Contatto': 'serv.statistica@provincia.tn.it',
             u'Descrizione': format_description(),
             u'Categorie': 'Statistica',
-            u'Tag/Parole chiave': ', u'.join((origmeta['Area'], origmeta['Settore'])),
+            u'Tag/Parole chiave': ', '.join((origmeta['Area'], origmeta['Settore'])),
             u'Documentazione Tecnica': DOCTEC,
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': created.isoformat(),
@@ -105,7 +127,7 @@ def create_csv_from_json(rows):
 
 class PatStatWebHarvester(HarvesterBase):
     INDEX_URL = \
-        "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/expJSON.aspx"
+        "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/exp.aspx"
 
     def info(self):
         return {
@@ -187,7 +209,12 @@ class PatStatWebHarvester(HarvesterBase):
 
         api_key = user.get('apikey')
 
-        base_location = "http://127.0.0.1:5000"
+        from pylons import config
+        base_location = config['ckan.site_url']
+
+        # FIXME: no monkey patching here
+        ckanclient.CkanClient._post_multipart = _post_multipart
+
         ckan_client = ckanclient.CkanClient(
             base_location=base_location + '/api',
             api_key=api_key,
