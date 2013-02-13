@@ -6,14 +6,6 @@ import logging
 
 from hashlib import sha1
 
-from ckanext.harvest.harvesters import HarvesterBase
-from ckanext.harvest.model import HarvestObject
-
-from ckan.logic import get_action
-from ckan import model
-
-import ckanclient
-
 try:
     import simplejson as json
 except ImportError:
@@ -25,12 +17,12 @@ import datetime
 import csv
 from tempfile import mkstemp
 
-log = logging.getLogger(__name__)
+from ckanext.harvest.harvesters import HarvesterBase
+from ckanext.harvest.model import HarvestObject
 
-DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
-DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/ElencoIndicatori.aspx'''
+from ckan.logic import get_action
+from ckan import model
 
-# patched ckanclient functions for upload
 def _post_multipart(self, selector, fields, files):
     '''Post fields and files to an http host as multipart/form-data.
 
@@ -52,6 +44,18 @@ def _post_multipart(self, selector, fields, files):
     req = requests.post(url, data=dict(fields), files={files[0][0]: files[0][1:]}, headers=headers)
     return req.status_code, req.error, req.headers, req.text
 
+
+import ckanclient
+
+# FIXME: no monkey patching here
+ckanclient.CkanClient._post_multipart = _post_multipart
+
+log = logging.getLogger(__name__)
+
+DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
+DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/ElencoIndicatori.aspx'''
+
+# patched ckanclient functions for upload
 
 def metadata_mapping(infodict):
     """
@@ -212,9 +216,6 @@ class PatStatWebHarvester(HarvesterBase):
         from pylons import config
         base_location = config['ckan.site_url']
 
-        # FIXME: no monkey patching here
-        ckanclient.CkanClient._post_multipart = _post_multipart
-
         ckan_client = ckanclient.CkanClient(
             base_location=base_location + '/api',
             api_key=api_key,
@@ -226,7 +227,7 @@ class PatStatWebHarvester(HarvesterBase):
         package_dict = {
             'id': sha1(elem['URL']).hexdigest(),
             'title': elem['Descrizione'],
-            'groups': ['Statistica'],
+            'groups': ['statistica'],
             'url': elem['URL'],
             'notes': elem['metadata']["Note"],
             'author': elem['Fonte'],
@@ -235,7 +236,7 @@ class PatStatWebHarvester(HarvesterBase):
             'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
             'license_id': 'cc-by',
             'license': u'Creative Commons Attribution',
-            'license_title': u'Creative Commons CCZero',
+            'license_title': u'Creative Commons Attribution 3.0 it',
             'license_url': u'http://creativecommons.org/licenses/by/3.0/it/',
             'isopen': True,
             'extras': metadata_mapping(elem),
