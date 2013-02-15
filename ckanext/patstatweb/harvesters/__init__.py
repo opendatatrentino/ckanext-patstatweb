@@ -133,6 +133,9 @@ class PatStatWebHarvester(HarvesterBase):
     INDEX_URL = \
         "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/exp.aspx"
 
+    # in v2 groups are identified by ids instead of names, so stick with v1
+    config = {'api_version': 1}
+
     def info(self):
         return {
             u'name': u'PATstatweb',
@@ -225,22 +228,22 @@ class PatStatWebHarvester(HarvesterBase):
         elem = json.loads(harvest_object.content)
 
         package_dict = {
-            'id': sha1(elem['URL']).hexdigest(),
-            'title': elem['Descrizione'],
-            'groups': ['statistica'],
-            'url': elem['URL'],
-            'notes': elem['metadata']["Note"],
-            'author': elem['Fonte'],
-            'maintainer':  elem['Fonte'],
-            'maintainer_email': 'serv.statistica@provincia.tn.it',
-            'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
-            'license_id': 'cc-by',
-            'license': u'Creative Commons Attribution',
-            'license_title': u'Creative Commons Attribution 3.0 it',
-            'license_url': u'http://creativecommons.org/licenses/by/3.0/it/',
-            'isopen': True,
-            'extras': metadata_mapping(elem),
-            'resources': []
+            u'id': sha1(elem['URL']).hexdigest(),
+            u'title': elem['Descrizione'],
+            u'groups': ['statistica'],
+            u'url': elem['URL'],
+            u'notes': elem['metadata']["Note"],
+            u'author': elem['Fonte'],
+            u'maintainer':  elem['Fonte'],
+            u'maintainer_email': 'serv.statistica@provincia.tn.it',
+            u'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
+            u'license_id': 'cc-by',
+            u'license': u'Creative Commons Attribution',
+            u'license_title': u'Creative Commons Attribution 3.0 it',
+            u'license_url': u'http://creativecommons.org/licenses/by/3.0/it/',
+            u'isopen': True,
+            u'extras': metadata_mapping(elem),
+            u'resources': []
         }
 
         modified = package_dict['extras']['Data di Aggiornamento']
