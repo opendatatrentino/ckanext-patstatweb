@@ -227,22 +227,25 @@ class PatStatWebHarvester(HarvesterBase):
 
         elem = json.loads(harvest_object.content)
 
+        extras = metadata_mapping(elem)
+
         package_dict = {
             u'id': sha1(elem['URL']).hexdigest(),
-            u'title': elem['Descrizione'],
+            u'title': extras[u'Titolo'],
             u'groups': ['statistica'],
-            u'url': elem['URL'],
-            u'notes': elem['metadata']["Note"],
-            u'author': elem['Fonte'],
-            u'maintainer':  elem['Fonte'],
-            u'maintainer_email': 'serv.statistica@provincia.tn.it',
+            u'url': DOCTEC,
+            u'notes': extras[u'Descrizione'],
+            u'author': extras[u'Autore'],
+            u'author_email': extras[u'Contatto'],
+            u'maintainer': extras[u'Autore'],
+            u'maintainer_email': extras[u'Contatto'],
             u'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
             u'license_id': 'cc-by',
             u'license': u'Creative Commons Attribution',
             u'license_title': u'Creative Commons Attribution 3.0 it',
             u'license_url': u'http://creativecommons.org/licenses/by/3.0/it/',
             u'isopen': True,
-            u'extras': metadata_mapping(elem),
+            u'extras': extras,
             u'resources': []
         }
 
