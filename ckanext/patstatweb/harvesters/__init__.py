@@ -75,12 +75,12 @@ def metadata_mapping(infodict):
     def format_description():
         d = u''.join((
             infodict['Descrizione'],
-            u'. Area: ', origmeta['Area'],
-            u'. Settore: ', origmeta['Settore'],
-            u'. Algoritmo: ', origmeta['Algoritmo'],
-            u'. Unità di misura: ', origmeta['UM'],
-            u'. Fenomeno: ', origmeta['Fenomeno'],
-            u'. Confronti territoriali: ',
+            u'.\nArea: ', origmeta['Area'],
+            u'.\nSettore: ', origmeta['Settore'],
+            u'.\nAlgoritmo: ', origmeta['Algoritmo'],
+            u'.\nUnità di misura: ', origmeta['UM'],
+            u'.\nFenomeno: ', origmeta['Fenomeno'],
+            u'.\nConfronti territoriali: ',
             origmeta['ConfrontiTerritoriali'],
             u'. Note: ', origmeta['Note'],
         ))
@@ -89,25 +89,14 @@ def metadata_mapping(infodict):
     extras = {}
     try:
         extras = {
-            u'Titolo': infodict['Descrizione'],
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Referente': 'Servizio Statistica',
-            u'Contatto': 'serv.statistica@provincia.tn.it',
-            u'Descrizione': format_description(),
             u'Categorie': 'Statistica',
-            u'Tag/Parole chiave': ', '.join((origmeta['Area'], origmeta['Settore'])),
-            u'Documentazione Tecnica': DOCTEC,
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': created.isoformat(),
             u'Copertura Temporale (Data di fine)': modified.isoformat(),
             u'Aggiornamento': origmeta['FreqAggiornamento'],
             u'Data di pubblicazione': datetime.datetime.now().isoformat(),
             u'Data di Aggiornamento': modified.isoformat(),
-            u'Licenza': 'CC-BY',
-            u'Formato': 'JSON',
-            u'Codifica Caratteri': 'utf8',
-            u'Autore': 'Servizio Statistica',
-            u"Email dell'autore": 'serv.statistica@provincia.tn.it',
             u'URL sito': 'http://www.statistica.provincia.tn.it',
         }
     except KeyError:
