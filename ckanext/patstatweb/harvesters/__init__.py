@@ -97,7 +97,6 @@ def metadata_mapping(infodict):
             u'Aggiornamento': origmeta['FreqAggiornamento'],
             u'Data di pubblicazione': datetime.datetime.now().isoformat(),
             u'Data di Aggiornamento': modified.isoformat(),
-            u'URL sito': 'http://www.statistica.provincia.tn.it',
         }
     except KeyError:
         log.error("Input format changed, fix the code")
