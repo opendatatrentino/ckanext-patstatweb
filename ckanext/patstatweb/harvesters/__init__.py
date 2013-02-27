@@ -14,8 +14,8 @@ except ImportError:
 import requests
 import datetime
 
-import csv
 from tempfile import mkstemp
+from urlparse import urljoin, urlparse
 
 from ckanext.harvest.harvesters import HarvesterBase
 from ckanext.harvest.model import HarvestObject
@@ -35,7 +35,6 @@ def _post_multipart(self, selector, fields, files):
 
     '''
 
-    from urlparse import urljoin, urlparse
 
     content_type, body = self._encode_multipart_formdata(fields, files)
 
@@ -56,6 +55,29 @@ DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
 DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/ElencoIndicatori.aspx'''
 
 # patched ckanclient functions for upload
+CHUNK_SIZE = 10 * 1024 * 1024 # 10 MB
+
+
+def download_big_file(url):
+    """
+    Download a file on a tempfile without exploding in memory
+    return the created file name
+    """
+    log.debug('Downloading: %s', url)
+    basefile = os.path.basename(urlparse.urlsplit(url).path)
+    fd, big_filename = mkstemp(prefix=basefile + '_XXXX')
+    with os.fdopen(fd, "w") as f:
+        #r = requests.get(url, stream=True)
+        r = requests.get(url)
+
+        if not r.ok:
+            log.error('Cannot get "%s"', url)
+            return None
+
+        for chunk in r.iter_content(CHUNK_SIZE):
+            f.write(chunk)
+
+    return big_filename
 
 def metadata_mapping(infodict):
     """
@@ -105,16 +127,6 @@ def metadata_mapping(infodict):
 
     return extras
 
-
-def create_csv_from_json(rows):
-    fd, path = mkstemp(suffix='.csv')
-    f = os.fdopen(fd, "w")
-    fieldnames = rows[0].keys()
-    writer = csv.DictWriter(f, fieldnames)
-    writer.writeheader()
-    writer.writerows(rows)
-    f.close()
-    return path
 
 
 class PatStatWebHarvester(HarvesterBase):
@@ -173,9 +185,16 @@ class PatStatWebHarvester(HarvesterBase):
             except KeyError:
                 pass
             else:
+                # download json
                 r1 = requests.get(resource_url)
                 if r1.ok:
                     elem[resource_key] = r1.json
+                # download csv
+                csv_url = resource_url.replace('fmt=json', 'fmt=csv')
+                csv_path = download_big_file(csv_url)
+                if csv_path:
+                     elem['metadata'][resource_key + '_csv_path'] = csv_path
+
 
         harvest_object.content = json.dumps(elem)
         harvest_object.save()
@@ -259,11 +278,10 @@ class PatStatWebHarvester(HarvesterBase):
             package_dict['resources'].append(res_dict)
 
             # After creating a link to the original source we want a CSV
-            rows = elem[resource_key][name]
-            file_path = create_csv_from_json(rows)
-            junkurl, errmsg = ckan_client.upload_file(file_path)
+            csv_path = elem['metadata'][resource_key + '_csv_path']
+            junkurl, errmsg = ckan_client.upload_file(csv_path)
             url = junkurl.replace('http://', base_location)
-            os.remove(file_path)
+            os.remove(csv_path)
 
             res_dict_csv = dict(res_dict)
             res_dict_csv["url"] = url
