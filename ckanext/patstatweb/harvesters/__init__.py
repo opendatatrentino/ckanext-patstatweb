@@ -15,7 +15,7 @@ import requests
 import datetime
 
 from tempfile import mkstemp
-from urlparse import urljoin, urlparse
+from urllib2 import urlparse
 
 from ckanext.harvest.harvesters import HarvesterBase
 from ckanext.harvest.model import HarvestObject
@@ -34,6 +34,7 @@ def _post_multipart(self, selector, fields, files):
     :returns: the server's response page
 
     '''
+    from urlparse import urljoin, urlparse
 
 
     content_type, body = self._encode_multipart_formdata(fields, files)
