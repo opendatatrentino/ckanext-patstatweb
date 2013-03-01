@@ -23,6 +23,9 @@ from ckanext.harvest.model import HarvestObject
 from ckan.logic import get_action
 from ckan import model
 
+import csv
+import codecs
+
 def _post_multipart(self, selector, fields, files):
     '''Post fields and files to an http host as multipart/form-data.
 
@@ -53,7 +56,7 @@ ckanclient.CkanClient._post_multipart = _post_multipart
 log = logging.getLogger(__name__)
 
 DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
-DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/ElencoIndicatori.aspx'''
+DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/default.aspx'''
 
 # patched ckanclient functions for upload
 CHUNK_SIZE = 10 * 1024 * 1024 # 10 MB
@@ -80,6 +83,22 @@ def download_big_file(url):
 
     return big_filename
 
+def convert_csv(semicolon_csv):
+    """
+    convert from semicolon separated to comma separated
+    and give the new file name
+    """
+    comma_csv = None
+    with open(semicolon_csv, mode="rU") as infile:
+        reader = csv.reader(infile, delimiter=';')
+        prefix = semicolon_csv.rpartition('.csv')[0] + '_'
+        fd, comma_csv = mkstemp(prefix=prefix, suffix='.csv')
+
+        with os.fdopen(fd, "w") as outfile:
+            writer = csv.writer(outfile)
+            writer.writerows(reader)
+    return comma_csv
+
 def metadata_mapping(infodict):
     """
     Mapping secondo specifiche tratte da:
@@ -96,22 +115,24 @@ def metadata_mapping(infodict):
     created = datetime.datetime(int(Anno), 1, 1)
 
     def format_description():
+        """Markdown syntax"""
         d = u''.join((
-            infodict['Descrizione'],
-            u'.\nArea: ', origmeta['Area'],
-            u'.\nSettore: ', origmeta['Settore'],
-            u'.\nAlgoritmo: ', origmeta['Algoritmo'],
-            u'.\nUnità di misura: ', origmeta['UM'],
-            u'.\nFenomeno: ', origmeta['Fenomeno'],
-            u'.\nConfronti territoriali: ',
+            u'**%s**' % infodict['Descrizione'],
+            u'.  \n**Area:** ', origmeta['Area'],
+            u'.  \n**Settore:** ', origmeta['Settore'],
+            u'.  \n**Algoritmo:** ', origmeta['Algoritmo'],
+            u'.  \n**Unità di misura:** ', origmeta['UM'],
+            u'.  \n**Fenomeno:** ', origmeta['Fenomeno'],
+            u'.  \n**Confronti territoriali:** ',
             origmeta['ConfrontiTerritoriali'],
-            u'. Note: ', origmeta['Note'],
+            u'.  \n**Note:** ', origmeta['Note'],
         ))
         return d
 
     extras = {}
     try:
         extras = {
+            u'Notes' : format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
             u'Categorie': 'Statistica',
             u'Copertura Geografica': 'Provincia di Trento',
@@ -236,18 +257,19 @@ class PatStatWebHarvester(HarvesterBase):
         elem = json.loads(harvest_object.content)
 
         extras = metadata_mapping(elem)
+        tags = [elem['metadata']['Area'], elem['metadata']['Settore']]
 
         package_dict = {
             u'id': sha1(elem['URL']).hexdigest(),
             u'title': elem[u'Descrizione'],
             u'groups': ['statistica'],
             u'url': DOCTEC,
-            u'notes': elem['metadata']['Note'],
+            u'notes': extras.pop(u'Notes'),
             u'author': 'Servizio Statistica',
             u'author_email': 'serv.statistica@provincia.tn.it',
             u'maintainer': 'Servizio Statistica',
             u'maintainer_email': 'serv.statistica@provincia.tn.it',
-            u'tags': [elem['metadata']['Area'], elem['metadata']['Settore']],
+            u'tags': tags,
             u'license_id': 'cc-by',
             u'license': u'Creative Commons Attribution',
             u'license_title': u'Creative Commons Attribution 3.0 it',
@@ -279,17 +301,24 @@ class PatStatWebHarvester(HarvesterBase):
             package_dict['resources'].append(res_dict)
 
             # After creating a link to the original source we want a CSV
-            csv_path = elem['metadata'][resource_key + '_csv_path']
-            junkurl, errmsg = ckan_client.upload_file(csv_path)
-            url = junkurl.replace('http://', base_location)
-            os.remove(csv_path)
+            csv_semicolon = elem['metadata'][resource_key + '_csv_path']
+            csv_path = convert_csv(csv_semicolon)
+            try:
+                os.remove(csv_semicolon)
 
-            res_dict_csv = dict(res_dict)
-            res_dict_csv["url"] = url
-            res_dict_csv["format"] = 'csv'
-            res_dict_csv["mimetype"] = 'text/csv'
-            res_dict_csv["resource_type"] = 'file'
-            package_dict['resources'].append(res_dict_csv)
+                junkurl, errmsg = ckan_client.upload_file(csv_path)
+                url = junkurl.replace('http://', base_location)
+                os.remove(csv_path)
+
+                res_dict_csv = dict(res_dict)
+                res_dict_csv["url"] = url
+                res_dict_csv["format"] = 'csv'
+                res_dict_csv["mimetype"] = 'text/csv'
+                res_dict_csv["resource_type"] = 'file'
+                package_dict['resources'].append(res_dict_csv)
+
+            except os.OSError:
+                log.error("Missing CSV: %s", csv_semicolon)
 
         package_dict['name'] = self._gen_new_name(package_dict['title'])
 
