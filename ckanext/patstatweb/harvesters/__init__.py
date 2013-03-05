@@ -129,6 +129,9 @@ def metadata_mapping(infodict):
     Anno = origmeta['AnnoInizio'] or '1970'
     created = datetime.datetime(int(Anno), 1, 1)
 
+    def dateformat(d):
+        return d.strftime(r"%d/%m/%Y %H:%M")
+
     def format_description():
         """Markdown syntax"""
         d = u''.join((
@@ -151,11 +154,11 @@ def metadata_mapping(infodict):
             u'Titolare': 'Provincia Autonoma di Trento',
             u'Categorie': 'Statistica',
             u'Copertura Geografica': 'Provincia di Trento',
-            u'Copertura Temporale (Data di inizio)': created.isoformat(),
-            u'Copertura Temporale (Data di fine)': modified.isoformat(),
+            u'Copertura Temporale (Data di inizio)': dateformat(created),
+            u'Copertura Temporale (Data di fine)': dateformat(modified),
             u'Aggiornamento': origmeta['FreqAggiornamento'],
-            u'Data di pubblicazione': datetime.datetime.now().isoformat(),
-            u'Data di Aggiornamento': modified.isoformat(),
+            u'Data di pubblicazione': dateformat(datetime.datetime.now()),
+            u'Data di Aggiornamento': dateformat(modified),
         }
     except KeyError:
         log.error("Input format changed, fix the code")
