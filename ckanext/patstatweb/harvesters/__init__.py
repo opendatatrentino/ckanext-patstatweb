@@ -275,6 +275,8 @@ class PatStatWebHarvester(HarvesterBase):
         elem = json.loads(harvest_object.content)
 
         extras = metadata_mapping(elem)
+        modified = extras['Data di Aggiornamento']
+
         tags = clean_tags([elem['metadata']['Area'], elem['metadata']['Settore']])
 
 
@@ -288,6 +290,7 @@ class PatStatWebHarvester(HarvesterBase):
             u'author_email': 'serv.statistica@provincia.tn.it',
             u'maintainer': 'Servizio Statistica',
             u'maintainer_email': 'serv.statistica@provincia.tn.it',
+            u'metadata_modified': modified,
             u'tags': tags,
             u'license_id': 'cc-by',
             u'license': u'Creative Commons Attribution',
@@ -298,7 +301,6 @@ class PatStatWebHarvester(HarvesterBase):
             u'resources': []
         }
 
-        modified = package_dict['extras']['Data di Aggiornamento']
 
         for resource_key in DATASET_KEYS:
             try:
@@ -340,8 +342,5 @@ class PatStatWebHarvester(HarvesterBase):
                 log.error("Missing CSV: %s", csv_semicolon)
 
         package_dict['name'] = self._gen_new_name(package_dict['title'])
-
-        # Set the modification date
-        package_dict['metadata_modified'] = modified
 
         return self._create_or_update_package(package_dict, harvest_object)
