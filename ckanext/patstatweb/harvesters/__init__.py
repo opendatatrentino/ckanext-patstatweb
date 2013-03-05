@@ -24,7 +24,22 @@ from ckan.logic import get_action
 from ckan import model
 
 import csv
-import codecs
+
+import re
+
+tag_sep = re.compile(" con | del.. |[, ']")
+
+def clean_tags(taglist):
+    """
+    Tags are only alphanum with '_-.'
+    """
+    tags = []
+    for word in taglist:
+        for candidate in tag_sep.split(word):
+            if len(candidate) > 1:
+                tags.append(candidate)
+    return tags
+
 
 def _post_multipart(self, selector, fields, files):
     '''Post fields and files to an http host as multipart/form-data.
@@ -257,7 +272,8 @@ class PatStatWebHarvester(HarvesterBase):
         elem = json.loads(harvest_object.content)
 
         extras = metadata_mapping(elem)
-        tags = [elem['metadata']['Area'], elem['metadata']['Settore']]
+        tags = clean_tags([elem['metadata']['Area'], elem['metadata']['Settore']])
+
 
         package_dict = {
             u'id': sha1(elem['URL']).hexdigest(),
