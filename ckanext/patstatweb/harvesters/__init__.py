@@ -130,7 +130,8 @@ def metadata_mapping(infodict):
     created = datetime.datetime(int(Anno), 1, 1)
 
     def dateformat(d):
-        return d.strftime(r"%d/%m/%Y %H:%M")
+#       return d.strftime(r"%d/%m/%Y %H:%M")
+        return d.isoformat()
 
     def format_description():
         """Markdown syntax"""
