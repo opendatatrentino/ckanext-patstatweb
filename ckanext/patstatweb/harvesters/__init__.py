@@ -160,7 +160,7 @@ def metadata_mapping(infodict):
             u'Aggiornamento': origmeta['FreqAggiornamento'],
             u'Data di pubblicazione': dateformat(datetime.datetime.now()),
             u'Data di Aggiornamento': dateformat(modified),
-            u'Codifica Caratteri': 'UTF8',
+            u'Codifica Caratteri': 'UTF-8',
         }
     except KeyError:
         log.error("Input format changed, fix the code")
