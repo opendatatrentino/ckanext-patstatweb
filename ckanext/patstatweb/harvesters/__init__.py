@@ -27,7 +27,7 @@ import csv
 
 import re
 
-tag_sep = re.compile(" con | del.. |[, ']")
+tag_sep = re.compile(" con | del.?.? | ed |[, ']")
 
 def clean_tags(taglist):
     """
@@ -160,6 +160,7 @@ def metadata_mapping(infodict):
             u'Aggiornamento': origmeta['FreqAggiornamento'],
             u'Data di pubblicazione': dateformat(datetime.datetime.now()),
             u'Data di Aggiornamento': dateformat(modified),
+            u'Codifica Caratteri': 'UTF8',
         }
     except KeyError:
         log.error("Input format changed, fix the code")
