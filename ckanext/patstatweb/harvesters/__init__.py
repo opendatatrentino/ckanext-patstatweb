@@ -61,10 +61,10 @@ cat_map = {
         u'istruzione formazione' : 'Conoscenza',
         u'ricerca' : 'Conoscenza',
         u'sviluppo e innovazione' : 'Conoscenza',
-        u'mercato del lavoro' : 'Conoscenza',
-        u'salute' : 'Conoscenza',
-        u'famiglie e comportamenti sociali' : 'Conoscenza',
-        u'assistenza e protezione sociale' : 'Conoscenza',
+        u'mercato del lavoro' : 'Welfare',
+        u'salute' : 'Welfare',
+        u'famiglie e comportamenti sociali' : 'Welfare',
+        u'assistenza e protezione sociale' : 'Welfare',
         u'popolazione' : 'Demografia',
         u'società dell\'informazione' : 'Demografia',
         }
@@ -197,7 +197,7 @@ def metadata_mapping(infodict):
         extras = {
             u'Notes' : format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Categorie': cat_map.get(origmeta.get('Settore', None), 'Statistica'),
+            u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Statistica'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
             u'Copertura Temporale (Data di fine)': dateformat(modified),
