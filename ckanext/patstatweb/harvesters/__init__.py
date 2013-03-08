@@ -25,19 +25,40 @@ from ckan import model
 
 import csv
 
-import re
+tags_remove = [
+    'rdnt', 'siat', 'pup', 'db prior 10k', 'pup; rndt', 'inquadramenti di base',
+    'suap', 'scritte', 'pupagri', 'pupasc', 'pupbos',
+]
 
-tag_sep = re.compile(" con | del.?.? | ed | di |[, ']")
+tags_subs = {
+        'bosc' : 'boschi',
+        'comun' : 'comuni',
+        'siti archeolog' : 'siti archeologici',
+        'archeolog' : 'archeologia',
+        'specchio d\'acqua' : 'specchi d\'acqua',
+        'tratte': 'tratte ferroviarie',
+        'viabilità di progetto': 'viabilità',
+        'viabilità ferroviaria':  'viabilità',
+        'viafer': 'viabilità',
+        'viabilità forestale': 'viabilità',
+        'zps': 'zone protezione speciale',
+        'udf': 'distretti forestali',
+        'uffici distrettuali forestali': 'distretti forestali',
+        'pascolo' : 'pascoli',
+        'idrografici' : 'idrografia',
+        }
 
 def clean_tags(taglist):
     """
     Tags are only alphanum with '_-.'
     """
     tags = []
-    for word in taglist:
-        for candidate in tag_sep.split(word):
-            if len(candidate) > 1:
-                tags.append(candidate)
+    for word in (tag.lower().replace('  ', ' ') for tag in taglist):
+        if word in tags_remove:
+            continue
+        tag = tags_subs.get(word, word)
+        if len(tag) > 1:
+            tags.append(tag)
     return tags
 
 
