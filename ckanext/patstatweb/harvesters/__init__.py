@@ -75,11 +75,13 @@ def clean_tags(taglist):
     """
     tags = []
     for word in (tag.lower().replace('  ', ' ') for tag in taglist):
-        if word in tags_remove:
-            continue
-        tag = tags_subs.get(word, word)
-        if len(tag) > 1:
-            tags.append(tag)
+        for cleaned in (w.strip() for w in word.split(',')):
+            if cleaned in tags_remove:
+                continue
+            tag = tags_subs.get(cleaned, cleaned)
+            if len(tag) > 1:
+                # "'" are not accepted by ckan
+                tags.append(tag.replace("'", " "))
     return tags
 
 
