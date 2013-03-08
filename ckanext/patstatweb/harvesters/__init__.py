@@ -48,6 +48,27 @@ tags_subs = {
         'idrografici' : 'idrografia',
         }
 
+# mappa Settore verso Categorie
+cat_map = {
+        u'agricoltura' : 'Economia',
+        u'pesca' : 'Economia',
+        u'silvicoltura' : 'Economia',
+        u'commercio con l\'estero' : 'Economia',
+        u'commercio con l\'estero e internazionalizzazione' : 'Economia',
+        u'internazionalizzazione' : 'Economia',
+        u'conti economici' : 'Economia',
+        u'pubblica amministrazione' : 'Amministrazione',
+        u'istruzione formazione' : 'Conoscenza',
+        u'ricerca' : 'Conoscenza',
+        u'sviluppo e innovazione' : 'Conoscenza',
+        u'mercato del lavoro' : 'Conoscenza',
+        u'salute' : 'Conoscenza',
+        u'famiglie e comportamenti sociali' : 'Conoscenza',
+        u'assistenza e protezione sociale' : 'Conoscenza',
+        u'popolazione' : 'Demografia',
+        u'società dell\'informazione' : 'Demografia',
+        }
+
 def clean_tags(taglist):
     """
     Tags are only alphanum with '_-.'
@@ -174,7 +195,7 @@ def metadata_mapping(infodict):
         extras = {
             u'Notes' : format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Categorie': 'Statistica',
+            u'Categorie': cat_map.get(origmeta.get('Settore', None), 'Statistica'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
             u'Copertura Temporale (Data di fine)': dateformat(modified),
