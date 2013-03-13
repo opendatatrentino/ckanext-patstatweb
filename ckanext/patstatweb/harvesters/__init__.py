@@ -197,6 +197,7 @@ def metadata_mapping(infodict):
         extras = {
             u'Notes' : format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
+            u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Demografia'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
             u'Copertura Temporale (Data di fine)': dateformat(modified),
@@ -209,11 +210,6 @@ def metadata_mapping(infodict):
         log.error("Input format changed, fix the code")
     except UnicodeDecodeError:
         log.error("Encoding error, fix the code")
-
-    try:
-        extras[u'Categorie'] = cat_map[origmeta.get('Settore', 'default').lower()]
-    except KeyError:
-        pass
 
     return extras
 
