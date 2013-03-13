@@ -197,7 +197,7 @@ def metadata_mapping(infodict):
         extras = {
             u'Notes' : format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Demografia'),
+            u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Conoscenza'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
             u'Copertura Temporale (Data di fine)': dateformat(modified),
