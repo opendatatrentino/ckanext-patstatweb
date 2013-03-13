@@ -197,19 +197,23 @@ def metadata_mapping(infodict):
         extras = {
             u'Notes' : format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Statistica'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
             u'Copertura Temporale (Data di fine)': dateformat(modified),
             u'Aggiornamento': origmeta['FreqAggiornamento'],
             u'Data di pubblicazione': dateformat(datetime.datetime.now()),
-            u'Data di Aggiornamento': dateformat(modified),
+            u'Data di aggiornamento': dateformat(modified),
             u'Codifica Caratteri': 'UTF-8',
         }
     except KeyError:
         log.error("Input format changed, fix the code")
     except UnicodeDecodeError:
         log.error("Encoding error, fix the code")
+
+    try:
+        extras[u'Categorie'] = cat_map[origmeta.get('Settore', 'default').lower()]
+    except KeyError:
+        pass
 
     return extras
 
@@ -321,7 +325,7 @@ class PatStatWebHarvester(HarvesterBase):
         elem = json.loads(harvest_object.content)
 
         extras = metadata_mapping(elem)
-        modified = extras['Data di Aggiornamento']
+        modified = extras['Data di aggiornamento']
 
         tags = clean_tags([elem['metadata']['Area'], elem['metadata']['Settore']])
 
@@ -343,6 +347,7 @@ class PatStatWebHarvester(HarvesterBase):
             u'license_title': u'Creative Commons Attribution 3.0 it',
             u'license_url': u'http://creativecommons.org/licenses/by/3.0/it/',
             u'isopen': True,
+            u'Categorie': extras.pop('Categorie'),
             u'extras': extras,
             u'resources': []
         }
