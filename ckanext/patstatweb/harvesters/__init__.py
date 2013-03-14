@@ -24,6 +24,7 @@ from ckan.logic import get_action
 from ckan import model
 
 import csv
+import re
 
 tags_remove = [
     'rdnt', 'siat', 'pup', 'db prior 10k', 'pup; rndt', 'inquadramenti di base',
@@ -142,9 +143,10 @@ def download_big_file(url):
 
     return big_filename
 
+
 def convert_csv(semicolon_csv):
     """
-    convert from semicolon separated to comma separated
+    converts from semicolon separated to comma separated
     and give the new file name
     """
     comma_csv = None
@@ -155,7 +157,13 @@ def convert_csv(semicolon_csv):
 
         with os.fdopen(fd, "w") as outfile:
             writer = csv.writer(outfile)
-            writer.writerows(reader)
+
+            fpattern = re.compile(r'^(-?\d+),(\d+)$')
+            for line in reader:
+                # changes numbers floating comma in floating point
+                newline = [ fpattern.sub(r'\1.\2', s) for s in line ]
+                writer.writerow(newline)
+
     return comma_csv
 
 def metadata_mapping(infodict):
@@ -200,7 +208,6 @@ def metadata_mapping(infodict):
             u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Conoscenza'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
-            u'Copertura Temporale (Data di fine)': dateformat(modified),
             u'Aggiornamento': origmeta['FreqAggiornamento'],
             u'Data di pubblicazione': dateformat(datetime.datetime.now()),
             u'Data di aggiornamento': dateformat(modified),
