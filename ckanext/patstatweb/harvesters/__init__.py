@@ -128,8 +128,9 @@ def download_big_file(url):
     return the created file name
     """
     log.debug('Downloading: %s', url)
-    basefile = os.path.basename(urlparse.urlsplit(url).path)
-    fd, big_filename = mkstemp(prefix=basefile + '_XXXX')
+    basefile, ext = os.path.basename(urlparse.urlsplit(url).path).rpartition('.')[0::2]
+    if ext != "": ext = '.' + ext
+    fd, big_filename = mkstemp(prefix=basefile, suffix=ext)
     with os.fdopen(fd, "w") as f:
         #r = requests.get(url, stream=True)
         r = requests.get(url)
