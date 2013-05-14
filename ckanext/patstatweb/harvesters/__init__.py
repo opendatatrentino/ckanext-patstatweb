@@ -365,23 +365,18 @@ class PatStatWebHarvester(HarvesterBase):
 
             name = elem[resource_key].keys()[0]
 
-            json_path = download_big_file(resource_url)
-            junkurl, errmsg = ckan_client.upload_file(json_path)
-            url = junkurl.replace('http://', base_location)
-            os.remove(json_path)
-
             res_dict = {
-                'url': url,
+                'url': resource_url,
                 'format': 'json',
                 'mimetype': 'application/json',
-                'resource_type': 'file',
+                'resource_type': 'api',
                 'description': name,
                 'name': name,
                 'last_modified': modified,
             }
             package_dict['resources'].append(res_dict)
 
-            # Download and convert to comma separated, floating point CSV
+            # After creating a link to the original source we want a CSV
             csv_semicolon = elem['metadata'][resource_key + '_csv_path']
             csv_path = convert_csv(csv_semicolon)
             try:
