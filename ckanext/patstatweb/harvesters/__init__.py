@@ -32,43 +32,44 @@ tags_remove = [
 ]
 
 tags_subs = {
-        'bosc' : 'boschi',
-        'comun' : 'comuni',
-        'siti archeolog' : 'siti archeologici',
-        'archeolog' : 'archeologia',
-        'specchio d\'acqua' : 'specchi d\'acqua',
-        'tratte': 'tratte ferroviarie',
-        'viabilità di progetto': 'viabilità',
-        'viabilità ferroviaria':  'viabilità',
-        'viafer': 'viabilità',
-        'viabilità forestale': 'viabilità',
-        'zps': 'zone protezione speciale',
-        'udf': 'distretti forestali',
-        'uffici distrettuali forestali': 'distretti forestali',
-        'pascolo' : 'pascoli',
-        'idrografici' : 'idrografia',
-        }
+    'bosc': 'boschi',
+    'comun': 'comuni',
+    'siti archeolog': 'siti archeologici',
+    'archeolog': 'archeologia',
+    'specchio d\'acqua': 'specchi d\'acqua',
+    'tratte': 'tratte ferroviarie',
+    'viabilità di progetto': 'viabilità',
+    'viabilità ferroviaria':  'viabilità',
+    'viafer': 'viabilità',
+    'viabilità forestale': 'viabilità',
+    'zps': 'zone protezione speciale',
+    'udf': 'distretti forestali',
+    'uffici distrettuali forestali': 'distretti forestali',
+    'pascolo': 'pascoli',
+    'idrografici': 'idrografia',
+}
 
 # mappa Settore verso Categorie
 cat_map = {
-        u'agricoltura' : 'Economia',
-        u'pesca' : 'Economia',
-        u'silvicoltura' : 'Economia',
-        u'commercio con l\'estero' : 'Economia',
-        u'commercio con l\'estero e internazionalizzazione' : 'Economia',
-        u'internazionalizzazione' : 'Economia',
-        u'conti economici' : 'Economia',
-        u'pubblica amministrazione' : 'Amministrazione',
-        u'istruzione formazione' : 'Conoscenza',
-        u'ricerca' : 'Conoscenza',
-        u'sviluppo e innovazione' : 'Conoscenza',
-        u'mercato del lavoro' : 'Welfare',
-        u'salute' : 'Welfare',
-        u'famiglie e comportamenti sociali' : 'Welfare',
-        u'assistenza e protezione sociale' : 'Welfare',
-        u'popolazione' : 'Demografia',
-        u'società dell\'informazione' : 'Demografia',
-        }
+    u'agricoltura': 'Economia',
+    u'pesca': 'Economia',
+    u'silvicoltura': 'Economia',
+    u'commercio con l\'estero': 'Economia',
+    u'commercio con l\'estero e internazionalizzazione': 'Economia',
+    u'internazionalizzazione': 'Economia',
+    u'conti economici': 'Economia',
+    u'pubblica amministrazione': 'Amministrazione',
+    u'istruzione formazione': 'Conoscenza',
+    u'ricerca': 'Conoscenza',
+    u'sviluppo e innovazione': 'Conoscenza',
+    u'mercato del lavoro': 'Welfare',
+    u'salute': 'Welfare',
+    u'famiglie e comportamenti sociali': 'Welfare',
+    u'assistenza e protezione sociale': 'Welfare',
+    u'popolazione': 'Demografia',
+    u'società dell\'informazione': 'Demografia',
+}
+
 
 def clean_tags(taglist):
     """
@@ -99,7 +100,6 @@ def _post_multipart(self, selector, fields, files):
     '''
     from urlparse import urljoin, urlparse
 
-
     content_type, body = self._encode_multipart_formdata(fields, files)
 
     headers = self._auth_headers()
@@ -116,7 +116,7 @@ ckanclient.CkanClient._post_multipart = _post_multipart
 log = logging.getLogger(__name__)
 
 DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
-DOCTEC = '''http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/default.aspx'''
+DOCTEC = 'http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/default.aspx'
 
 # patched ckanclient functions for upload
 CHUNK_SIZE = 10 * 1024 * 1024 # 10 MB
@@ -129,7 +129,8 @@ def download_big_file(url):
     """
     log.debug('Downloading: %s', url)
     basefile, ext = os.path.basename(urlparse.urlsplit(url).path).rpartition('.')[0::2]
-    if ext != "": ext = '.' + ext
+    if ext != "":
+        ext = '.' + ext
     fd, big_filename = mkstemp(prefix=basefile, suffix=ext)
     with os.fdopen(fd, "w") as f:
         #r = requests.get(url, stream=True)
@@ -162,10 +163,11 @@ def convert_csv(semicolon_csv):
             fpattern = re.compile(r'^(-?\d+),(\d+)$')
             for line in reader:
                 # changes numbers floating comma in floating point
-                newline = [ fpattern.sub(r'\1.\2', s) for s in line ]
+                newline = [fpattern.sub(r'\1.\2', s) for s in line]
                 writer.writerow(newline)
 
     return comma_csv
+
 
 def metadata_mapping(infodict):
     """
@@ -204,9 +206,10 @@ def metadata_mapping(infodict):
     extras = {}
     try:
         extras = {
-            u'Notes' : format_description(),
+            u'Notes': format_description(),
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Categorie': cat_map.get(origmeta.get('Settore', 'default').lower(), 'Conoscenza'),
+            u'Categorie': cat_map.get(
+                origmeta.get('Settore', 'default').lower(), 'Conoscenza'),
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
             u'Aggiornamento': origmeta['FreqAggiornamento'],
@@ -220,7 +223,6 @@ def metadata_mapping(infodict):
         log.error("Encoding error, fix the code")
 
     return extras
-
 
 
 class PatStatWebHarvester(HarvesterBase):
@@ -287,8 +289,7 @@ class PatStatWebHarvester(HarvesterBase):
                 csv_url = resource_url.replace('fmt=json', 'fmt=csv')
                 csv_path = download_big_file(csv_url)
                 if csv_path:
-                     elem['metadata'][resource_key + '_csv_path'] = csv_path
-
+                    elem['metadata'][resource_key + '_csv_path'] = csv_path
 
         harvest_object.content = json.dumps(elem)
         harvest_object.save()
@@ -332,7 +333,6 @@ class PatStatWebHarvester(HarvesterBase):
         modified = extras['Data di aggiornamento']
 
         tags = clean_tags([elem['metadata']['Area'], elem['metadata']['Settore']])
-
 
         package_dict = {
             u'id': sha1(elem['URL']).hexdigest(),
