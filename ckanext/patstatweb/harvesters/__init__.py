@@ -1,6 +1,5 @@
 # CKAN Harvester per http://www.statweb.provincia.tn.it/
 # coding: utf-8
-
 import os
 import logging
 
@@ -27,8 +26,8 @@ import csv
 import re
 
 tags_remove = [
-    'rdnt', 'siat', 'pup', 'db prior 10k', 'pup; rndt', 'inquadramenti di base',
-    'suap', 'scritte', 'pupagri', 'pupasc', 'pupbos',
+    'rdnt', 'siat', 'pup', 'db prior 10k', 'pup; rndt',
+    'inquadramenti di base', 'suap', 'scritte', 'pupagri', 'pupasc', 'pupbos',
 ]
 
 tags_subs = {
@@ -50,7 +49,7 @@ tags_subs = {
 }
 
 # mappa Settore verso Categorie
-cat_map = {
+cat_map_stat = {
     u'agricoltura': 'Economia',
     u'pesca': 'Economia',
     u'silvicoltura': 'Economia',
@@ -70,6 +69,26 @@ cat_map = {
     u'società dell\'informazione': 'Demografia',
 }
 
+cat_map_sp = {
+    u"l'ambiente e il territorio": "Gestione del territorio",
+    u'le infrastrutture': "Gestione del territorio",
+    u'popolazione': "Demografia",
+    u'famiglie e comportamenti sociali': 'Demografia',
+    u'istruzione e formazione': 'Conoscenza',
+    u'mercato del lavoro': 'Economia',
+    u'le imprese, la formazione e la valorizzazione del capitale produttivo':
+    'Economia',
+    u'agricoltura': 'Economia',
+    u'servizi': 'Economia',
+    u'agricoltura, silvicoltura, pesca': 'Economia',
+}
+
+tipoindicatore_map = {
+    u'R': 'Rapporto',
+    u'M': 'Media',
+    u'I': 'Incremento anno precedente',
+}
+
 
 def clean_tags(taglist):
     """
@@ -87,6 +106,7 @@ def clean_tags(taglist):
     return tags
 
 
+# FIXME: This is to monkey patch ckanclient
 def _post_multipart(self, selector, fields, files):
     '''Post fields and files to an http host as multipart/form-data.
 
@@ -103,8 +123,12 @@ def _post_multipart(self, selector, fields, files):
     content_type, body = self._encode_multipart_formdata(fields, files)
 
     headers = self._auth_headers()
-    url = urljoin(self.base_location + urlparse(self.base_location).netloc, selector)
-    req = requests.post(url, data=dict(fields), files={files[0][0]: files[0][1:]}, headers=headers)
+    url = urljoin(self.base_location + urlparse(self.base_location).netloc,
+                  selector)
+    req = requests.post(
+        url, data=dict(fields), files={files[0][0]: files[0][1:]},
+        headers=headers
+    )
     return req.status_code, req.error, req.headers, req.text
 
 
@@ -115,11 +139,11 @@ ckanclient.CkanClient._post_multipart = _post_multipart
 
 log = logging.getLogger(__name__)
 
-DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore")
-DOCTEC = 'http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALI/default.aspx'
+DATASET_KEYS = ("Indicatore", "TabNumeratore", "TabDenominatore",
+                "URLIndicatoreD", "URLTabNumMD", "URLTabDenMD")
 
 # patched ckanclient functions for upload
-CHUNK_SIZE = 10 * 1024 * 1024 # 10 MB
+CHUNK_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 def download_big_file(url):
@@ -128,7 +152,8 @@ def download_big_file(url):
     return the created file name
     """
     log.debug('Downloading: %s', url)
-    basefile, ext = os.path.basename(urlparse.urlsplit(url).path).rpartition('.')[0::2]
+    basefile, ext = os.path.basename(urlparse.urlsplit(url).path). \
+        rpartition('.')[0::2]
     if ext != "":
         ext = '.' + ext
     fd, big_filename = mkstemp(prefix=basefile, suffix=ext)
@@ -151,7 +176,6 @@ def convert_csv(semicolon_csv):
     converts from semicolon separated to comma separated
     and give the new file name
     """
-    comma_csv = None
     with open(semicolon_csv, mode="rU") as infile:
         reader = csv.reader(infile, delimiter=';')
         prefix = semicolon_csv.rpartition('.csv')[0] + '_'
@@ -188,9 +212,9 @@ def metadata_mapping(infodict):
 #       return d.strftime(r"%d/%m/%Y %H:%M")
         return d.isoformat()
 
-    def format_description():
-        """Markdown syntax"""
-        d = u''.join((
+    def format_description_stat():
+        # This is markdown syntax for rich text on CKAN
+        return u''.join((
             u'**%s**' % infodict['Descrizione'],
             u'.  \n**Area:** ', origmeta['Area'],
             u'.  \n**Settore:** ', origmeta['Settore'],
@@ -201,18 +225,43 @@ def metadata_mapping(infodict):
             origmeta['ConfrontiTerritoriali'],
             u'.  \n**Note:** ', origmeta['Note'],
         ))
-        return d
+
+    def format_description_sp():
+        return u''.join((
+            u'**%s**' % infodict['Descrizione'],
+            u'.  \n**Area:** ', origmeta['Area'],
+            u'.  \n**Settore:** ', origmeta['Settore'],
+            u'.  \n**Algoritmo:** ', origmeta['Algoritmo'],
+            u'.  \n**Unità di misura:** ', origmeta[u'UnitàMisura'],
+            u'.  \n**Confronti territoriali:** ',
+            origmeta['ConfrontiTerritoriali'],
+            u'.  \n**Livello Geografico Minimo:** ',
+            origmeta['LivelloGeograficoMinimo'],
+            u'.  \n**Anno Base:** ', origmeta['AnnoBase'],
+            u'.  \n**Tipo Indicatore:** ',
+            tipoindicatore_map.get(origmeta['TipoIndicatore'], u''),
+        ))
 
     extras = {}
+    if infodict["stat_type"] == "SP":
+        category = cat_map_sp.get(
+            origmeta.get('Settore', 'default').lower(), 'Conoscenza'
+        )
+        description = format_description_sp()
+    else:
+        category = cat_map_stat.get(
+            origmeta.get('Settore', 'default').lower(), 'Conoscenza'
+        )
+        description = format_description_stat()
     try:
         extras = {
-            u'Notes': format_description(),
+            u'Notes': description,
             u'Titolare': 'Provincia Autonoma di Trento',
-            u'Categorie': cat_map.get(
-                origmeta.get('Settore', 'default').lower(), 'Conoscenza'),
+            u'Categorie': category,
             u'Copertura Geografica': 'Provincia di Trento',
             u'Copertura Temporale (Data di inizio)': dateformat(created),
-            u'Aggiornamento': origmeta['FreqAggiornamento'],
+            u'Aggiornamento': origmeta.get('FreqAggiornamento') or
+            origmeta.get('FrequenzaAggiornamento'),
             u'Data di pubblicazione': dateformat(datetime.datetime.now()),
             u'Data di aggiornamento': dateformat(modified),
             u'Codifica Caratteri': 'UTF-8',
@@ -226,8 +275,12 @@ def metadata_mapping(infodict):
 
 
 class PatStatWebHarvester(HarvesterBase):
-    INDEX_URL = \
-        "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/exp.aspx"
+    INDEX_URLS = [
+        "http://www.statweb.provincia.tn.it/IndicatoriStrutturali/exp.aspx",
+
+        "http://www.statweb.provincia.tn.it/INDICATORISTRUTTURALISubPro/"
+        "exp.aspx?list=i",
+    ]
 
     # in v2 groups are identified by ids instead of names, so stick with v1
     config = {'api_version': 1}
@@ -241,39 +294,58 @@ class PatStatWebHarvester(HarvesterBase):
 
     def gather_stage(self, harvest_job):
         log.debug('In PatStatWebHarvester gather stage')
+
         # Get feed contents
-
-        r = requests.get(self.INDEX_URL)
-
-        if not r.ok:
-            return []
-
-        try:
-            indicatori = r.json['IndicatoriStrutturali']
-        except KeyError, json.JSONDecodeError:
-            return []
-
         ids = []
-        for elem in indicatori:
-            obj = HarvestObject(
-                guid=sha1(elem['URL']).hexdigest(),
-                job=harvest_job,
-                content=json.dumps(elem)
-            )
-            obj.save()
-            ids.append(obj.id)
+        for index in self.INDEX_URLS:
+            r = requests.get(index)
+
+            if not r.ok:
+                return []
+
+            try:
+                json_data = r.json()
+                json_key = json_data.keys()[0]
+                indicatori = r.json().values()[0]
+            except KeyError, json.JSONDecodeError:
+                return []
+
+            for elem in indicatori:
+                if "URL" in elem:  # old IndicatoriStrutturali
+                    elem["stat_type"] = "stat"
+                # IndicatoriStrutturaliSP don't require a get for the metadata
+                else:
+                    elem["stat_type"] = "SP"
+                    elem["metadata"] = dict(elem)  # just for copying
+
+                elem['json_root_key'] = json_key
+
+                try:
+                    id_ = elem['URL']  # This is just to keep the old id,
+                except KeyError:
+                    id_ = elem['URLIndicatoreD']
+                elem['package_id'] = id_
+
+                obj = HarvestObject(
+                    guid=sha1(elem['package_id']).hexdigest(),
+                    job=harvest_job,
+                    content=json.dumps(elem)
+                )
+                obj.save()
+                ids.append(obj.id)
         return ids
 
     def fetch_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester fetch_stage')
 
         elem = json.loads(harvest_object.content)
-        r = requests.get(elem['URL'])
-        if not r.ok:
-            log.error('Cannot get "%s"', elem['URL'])
-            return False
 
-        elem['metadata'] = r.json.values()[0][0]
+        if elem["stat_type"] == "stat":
+            r = requests.get(elem['URL'])
+            if not r.ok:
+                log.error('Cannot get "%s"', elem['URL'])
+                return []
+            elem['metadata'] = r.json().values()[0][0]
 
         for resource_key in DATASET_KEYS:
             try:
@@ -281,10 +353,36 @@ class PatStatWebHarvester(HarvesterBase):
             except KeyError:
                 pass
             else:
+                if not resource_url:
+                    continue
+
                 # download json
+                log.debug("Downloading JSON: %s", resource_url)
                 r1 = requests.get(resource_url)
-                if r1.ok:
-                    elem[resource_key] = r1.json
+                if not r1.ok:
+                    # delete resources with broken urls
+                    del elem[resource_key]
+                else:
+                    try:
+                        r1_json = r1.json()
+                    except ValueError:
+                        log.error("Empty or invalid JSON %s", resource_url)
+                        continue
+                    try:
+                        first_elem = r1_json.values()[0][0]
+                    except IndexError:
+                        log.error("Invalid JSON %s", resource_url)
+                        continue
+                    # if it's metadata follow the URLTabD link and download
+                    # the real data
+                    if "URLTabD" in first_elem:
+                        resource_url = first_elem["URLTabD"]
+                        elem['metadata'][resource_key] = resource_url
+                        elem[resource_key] = \
+                            r1_json.values()[0][0]['descrizione']
+                    # Otherwise that's the real data
+                    else:
+                        elem[resource_key] = r1_json.keys()[0]
                 # download csv
                 csv_url = resource_url.replace('fmt=json', 'fmt=csv')
                 csv_path = download_big_file(csv_url)
@@ -293,6 +391,7 @@ class PatStatWebHarvester(HarvesterBase):
 
         harvest_object.content = json.dumps(elem)
         harvest_object.save()
+
         return True
 
     def import_stage(self, harvest_object):
@@ -301,7 +400,6 @@ class PatStatWebHarvester(HarvesterBase):
         if not harvest_object:
             log.error('No harvest object received')
             return False
-
         if harvest_object.content is None:
             log.error('Harvest object contentless')
             self._save_object_error(
@@ -332,13 +430,15 @@ class PatStatWebHarvester(HarvesterBase):
         extras = metadata_mapping(elem)
         modified = extras['Data di aggiornamento']
 
-        tags = clean_tags([elem['metadata']['Area'], elem['metadata']['Settore']])
+        tags = clean_tags(
+            [elem['metadata']['Area'], elem['metadata']['Settore']]
+        )
 
         package_dict = {
-            u'id': sha1(elem['URL']).hexdigest(),
+            u'id': sha1(elem['package_id']).hexdigest(),
             u'title': elem[u'Descrizione'],
             u'groups': ['statistica'],
-            u'url': DOCTEC,
+            u'url': "http://www.statistica.provincia.tn.it",
             u'notes': extras.pop(u'Notes'),
             u'author': 'Servizio Statistica',
             u'author_email': 'serv.statistica@provincia.tn.it',
@@ -356,14 +456,15 @@ class PatStatWebHarvester(HarvesterBase):
             u'resources': []
         }
 
-
         for resource_key in DATASET_KEYS:
             try:
                 resource_url = elem['metadata'][resource_key]
             except KeyError:
                 continue
+            if not elem[resource_key]:
+                continue
 
-            name = elem[resource_key].keys()[0]
+            name = elem[resource_key]
 
             res_dict = {
                 'url': resource_url,
@@ -393,9 +494,7 @@ class PatStatWebHarvester(HarvesterBase):
                 res_dict_csv["resource_type"] = 'file'
                 package_dict['resources'].append(res_dict_csv)
 
-            except os.OSError:
+            except OSError:
                 log.error("Missing CSV: %s", csv_semicolon)
-
         package_dict['name'] = self._gen_new_name(package_dict['title'])
-
         return self._create_or_update_package(package_dict, harvest_object)
