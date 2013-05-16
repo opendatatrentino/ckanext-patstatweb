@@ -370,7 +370,7 @@ class PatStatWebHarvester(HarvesterBase):
                         continue
                     try:
                         first_elem = r1_json.values()[0][0]
-                    except IndexError:
+                    except (IndexError, AttributeError):
                         log.error("Invalid JSON %s", resource_url)
                         continue
                     # if it's metadata follow the URLTabD link and download
