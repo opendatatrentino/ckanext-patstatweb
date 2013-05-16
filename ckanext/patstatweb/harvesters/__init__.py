@@ -364,7 +364,7 @@ class PatStatWebHarvester(HarvesterBase):
                     del elem[resource_key]
                 else:
                     try:
-                        r1_json = r1.json()
+                        r1_json = r1.json
                     except ValueError:
                         log.error("Empty or invalid JSON %s", resource_url)
                         continue
