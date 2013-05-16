@@ -304,9 +304,9 @@ class PatStatWebHarvester(HarvesterBase):
                 return []
 
             try:
-                json_data = r.json()
+                json_data = r.json
                 json_key = json_data.keys()[0]
-                indicatori = r.json().values()[0]
+                indicatori = json_data.values()[0]
             except KeyError, json.JSONDecodeError:
                 return []
 
@@ -345,7 +345,7 @@ class PatStatWebHarvester(HarvesterBase):
             if not r.ok:
                 log.error('Cannot get "%s"', elem['URL'])
                 return []
-            elem['metadata'] = r.json().values()[0][0]
+            elem['metadata'] = r.json.values()[0][0]
 
         for resource_key in DATASET_KEYS:
             try:
