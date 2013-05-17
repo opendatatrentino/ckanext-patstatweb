@@ -205,8 +205,8 @@ def metadata_mapping(infodict):
 
     day, month, year = [int(a) for a in date.split('/')]
     modified = datetime.datetime(year, month, day)
-    Anno = origmeta['AnnoInizio'] or '1970'
-    created = datetime.datetime(int(Anno), 1, 1)
+    anno = origmeta['AnnoInizio'] or '1970'
+    created = datetime.datetime(int(anno), 1, 1)
 
     def dateformat(d):
 #       return d.strftime(r"%d/%m/%Y %H:%M")
@@ -216,6 +216,7 @@ def metadata_mapping(infodict):
         # This is markdown syntax for rich text on CKAN
         return u''.join((
             u'**%s**' % infodict['Descrizione'],
+            u'\n**Indicatore strutturale del Servizio Statistica**.',
             u'.  \n**Area:** ', origmeta['Area'],
             u'.  \n**Settore:** ', origmeta['Settore'],
             u'.  \n**Algoritmo:** ', origmeta['Algoritmo'],
@@ -229,6 +230,7 @@ def metadata_mapping(infodict):
     def format_description_sp():
         return u''.join((
             u'**%s**' % infodict['Descrizione'],
+            u'\n**Indicatore subprovinciale del Servizio Statistica**.',
             u'.  \n**Area:** ', origmeta['Area'],
             u'.  \n**Settore:** ', origmeta['Settore'],
             u'.  \n**Algoritmo:** ', origmeta['Algoritmo'],
@@ -464,15 +466,13 @@ class PatStatWebHarvester(HarvesterBase):
             if not elem[resource_key]:
                 continue
 
-            name = elem[resource_key]
-
             res_dict = {
                 'url': resource_url,
                 'format': 'json',
                 'mimetype': 'application/json',
                 'resource_type': 'api',
-                'description': name,
-                'name': name,
+                'description': elem[resource_key],
+                'name': self._gen_new_name(elem[resource_key]),
                 'last_modified': modified,
             }
             package_dict['resources'].append(res_dict)
