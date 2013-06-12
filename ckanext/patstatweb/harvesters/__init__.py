@@ -285,7 +285,19 @@ class PatStatWebHarvester(HarvesterBase):
     ]
 
     # in v2 groups are identified by ids instead of names, so stick with v1
-    config = {'api_version': 1}
+
+    def _set_config(self, config_str):
+        if config_str:
+            self.config = json.loads(config_str)
+
+            if not 'api_version' in self.config:
+                self.config['api_version'] = 1
+
+            self.api_version = int(self.config['api_version'])
+
+            log.debug('Using config: %r', self.config)
+        else:
+            self.config = {}
 
     def info(self):
         return {
@@ -296,6 +308,8 @@ class PatStatWebHarvester(HarvesterBase):
 
     def gather_stage(self, harvest_job):
         log.debug('In PatStatWebHarvester gather stage')
+
+        self._set_config(harvest_job.source.config)
 
         # Get feed contents
         ids = []
@@ -339,6 +353,8 @@ class PatStatWebHarvester(HarvesterBase):
 
     def fetch_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester fetch_stage')
+
+        self._set_config(harvest_object.job.source.config)
 
         elem = json.loads(harvest_object.content)
 
@@ -399,6 +415,8 @@ class PatStatWebHarvester(HarvesterBase):
     def import_stage(self, harvest_object):
         log.debug('In PatStatWebHarvester import_stage')
 
+        self._set_config(harvest_object.job.source.config)
+
         if not harvest_object:
             log.error('No harvest object received')
             return False
@@ -439,7 +457,7 @@ class PatStatWebHarvester(HarvesterBase):
         package_dict = {
             u'id': sha1(elem['package_id']).hexdigest(),
             u'title': elem[u'Descrizione'],
-            u'groups': ['statistica'],
+            u'groups': self.config.get('groups', ['statistica']),
             u'url': "http://www.statistica.provincia.tn.it",
             u'notes': extras.pop(u'Notes'),
             u'author': 'Servizio Statistica',
