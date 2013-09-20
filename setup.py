@@ -2,6 +2,13 @@ from setuptools import setup, find_packages
 
 version = '0.1'
 
+entry_points = {
+    'ckan.plugins': [
+        'patstatweb_harvester='
+        'ckanext.patstatweb.harvesters:PatStatWebHarvester',
+    ]
+}
+
 setup(
     name='ckanext-patstatweb',
     version=version,
@@ -20,8 +27,5 @@ setup(
     install_requires=[
         'requests'
     ],
-    entry_points="""
-    [ckan.plugins]
-    patstatweb_harvester=ckanext.patstatweb.harvesters:PatStatWebHarvester
-    """,
+    entry_points=entry_points,
 )
